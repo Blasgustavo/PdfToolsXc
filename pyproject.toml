@@ -1,0 +1,33 @@
+[project]
+name = "pdftoolsxc"
+version = "0.1.0"
+description = "PdfToolsXc - Herramientas PDF con Python + Rust"
+requires-python = ">=3.11"
+dependencies = [
+    "PyQt6>=6.7.0",
+    "pypdfium2>=5.0.0",
+    "Pillow>=10.0.0",
+    "fpdf2>=2.7.8",
+]
+
+[project.optional-dependencies]
+dev = [
+    "maturin>=1.8.0",
+    "rustup",
+]
+
+[tool.maturin]
+manifest-path = "formatter/Cargo.toml"
+module-name = "pdftoolsxc_formatter"
+
+[tool.maturin.styles]
+formatter = "formatter"
+merger = "merger"
+splitter = "splitter"
+to_images = "to_images"
+ocr = "ocr"
+organizer = "organizer"
+
+[build-system]
+requires = ["maturin>=1.8.0,<2.0"]
+build-backend = "maturin"
