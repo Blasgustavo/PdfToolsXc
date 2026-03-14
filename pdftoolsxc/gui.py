@@ -8,6 +8,8 @@ import os
 from pathlib import Path
 from typing import List, Optional
 
+from pdftoolsxc.logger import logger, log_exception, log_module_load, log_file_operation
+
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QHBoxLayout, QVBoxLayout,
     QLabel, QPushButton,
@@ -797,6 +799,7 @@ class MainWindow(QWidget):
         main_layout.addWidget(content)
         
     def _on_tool_selected(self, tool_id: str):
+        logger.info(f"Herramienta seleccionada: {tool_id}")
         self.current_tool = tool_id
         
         for i in reversed(range(self.options_panel.layout().count())):
@@ -817,9 +820,13 @@ class MainWindow(QWidget):
         self.page_counter = 1
         
     def _on_files_dropped(self, files: List[str]):
+        logger.info(f"Archivos recibidos: {len(files)} archivo(s)")
         for f in files:
             if f not in self.files:
                 self.files.append(f)
+                log_file_operation("Añadido", f)
+        
+        logger.info(f"Total archivos en cola: {len(self.files)}")
         
         self.drop_zone.setVisible(False)
         self._load_thumbnails()
@@ -1021,7 +1028,10 @@ class MainWindow(QWidget):
         self.thumbnail_layout.update()
         
     def _on_process_clicked(self):
+        logger.info(f"Iniciando procesamiento | Herramienta: {self.current_tool} | Archivos: {len(self.files)}")
+        
         if not self.files:
+            logger.warning("Intento de procesar sin archivos")
             QMessageBox.warning(self, "Sin archivos", "Arrastra archivos primero")
             return
             
@@ -1042,10 +1052,12 @@ class MainWindow(QWidget):
                 self._process_ocr()
             elif self.current_tool == "organizer":
                 self._process_organizer()
-                
+            
+            logger.info("Procesamiento completado exitosamente")
             QMessageBox.information(self, "✅ Éxito", "Procesamiento completado\nguardado en la misma carpeta")
             
         except Exception as e:
+            log_exception(e, "Procesamiento")
             QMessageBox.critical(self, "❌ Error", f"Error: {str(e)}")
             
         finally:
@@ -1102,7 +1114,17 @@ def main():
     import os
     os.environ['QT_QPA_PLATFORM'] = 'windows'
     
+    logger.info("Iniciando aplicacion...")
+    
+    try:
+        from PyQt6 import QtCore
+        logger.info(f"PyQt6 v{QtCore.PYQT_VERSION_STR} cargado")
+    except Exception as e:
+        log_exception(e, "Carga de PyQt6")
+        return
+    
     app = QApplication(sys.argv)
+    logger.info("QApplication creada")
     
     font_path = get_font_path()
     if font_path:
@@ -1112,13 +1134,20 @@ def main():
             if font_families:
                 font = QFont(font_families[0], 12)
                 app.setFont(font)
+                logger.info(f"Fuente cargada: {font_families[0]}")
+        else:
+            logger.warning("No se pudo cargar fuente")
+    else:
+        logger.warning("Ruta de fuente no encontrada")
     
+    logger.info("Creando ventana principal...")
     window = MainWindow()
     window.show()
     window.setWindowState(window.windowState() & ~Qt.WindowState.WindowMinimized)
     window.raise_()
     window.activateWindow()
     window.setFocus()
+    logger.info("Ventana principal mostrada")
     sys.exit(app.exec())
 
 
