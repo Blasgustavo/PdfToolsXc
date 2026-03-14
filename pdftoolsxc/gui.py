@@ -506,6 +506,7 @@ class MainWindow(QWidget):
         
         self.loaded_files = []
         self.files = current_files
+        self.page_counter = 1
         self._load_thumbnails()
         
     def _setup_ui(self):
@@ -587,68 +588,95 @@ class MainWindow(QWidget):
         self.drop_zone.files_dropped.connect(self._on_files_dropped)
         content_layout.addWidget(self.drop_zone)
         
-        self.zoom_controls = QFrame()
-        self.zoom_controls.setVisible(False)
-        zoom_layout = QHBoxLayout(self.zoom_controls)
-        zoom_layout.setContentsMargins(0, 0, 0, 10)
+        self.workspace_header = QFrame()
+        self.workspace_header.setVisible(False)
+        self.workspace_header.setStyleSheet("""
+            QFrame {
+                background-color: transparent;
+                border: none;
+            }
+        """)
+        workspace_header_layout = QHBoxLayout(self.workspace_header)
+        workspace_header_layout.setContentsMargins(10, 8, 10, 8)
         
-        self.btn_zoom_out = QPushButton("\uf104")
-        self.btn_zoom_out.setFixedSize(36, 36)
+        workspace_title = QLabel("  Workspace")
+        workspace_title.setStyleSheet("""
+            QLabel {
+                color: #cccccc;
+                font-size: 12px;
+                font-weight: bold;
+                padding: 4px 8px;
+            }
+        """)
+        
+        workspace_header_layout.addWidget(workspace_title)
+        workspace_header_layout.addStretch()
+        
+        self.btn_zoom_out = QPushButton()
+        self.btn_zoom_out.setFixedSize(28, 28)
         self.btn_zoom_out.setCursor(Qt.CursorShape.PointingHandCursor)
+        icon_out = QIcon("assets/zoomout_zoom.png")
+        self.btn_zoom_out.setIcon(icon_out)
+        self.btn_zoom_out.setIconSize(QSize(18, 18))
         self.btn_zoom_out.setStyleSheet("""
             QPushButton {
                 background-color: #3c3c3c;
-                color: #cccccc;
                 border: none;
                 border-radius: 4px;
-                font-size: 16px;
+                padding: 2px;
             }
             QPushButton:hover {
                 background-color: #505050;
             }
             QPushButton:disabled {
-                color: #666666;
+                opacity: 0.5;
             }
         """)
         self.btn_zoom_out.clicked.connect(self._on_zoom_out)
         
-        self.zoom_label = QLabel("95%")
-        self.zoom_label.setStyleSheet("""
-            color: #cccccc;
-            font-size: 13px;
-            min-width: 50px;
-            text-align: center;
-        """)
-        
-        self.btn_zoom_in = QPushButton("\uf105")
-        self.btn_zoom_in.setFixedSize(36, 36)
+        self.btn_zoom_in = QPushButton()
+        self.btn_zoom_in.setFixedSize(28, 28)
         self.btn_zoom_in.setCursor(Qt.CursorShape.PointingHandCursor)
+        icon_in = QIcon("assets/zoomin_zoom.png")
+        self.btn_zoom_in.setIcon(icon_in)
+        self.btn_zoom_in.setIconSize(QSize(18, 18))
         self.btn_zoom_in.setStyleSheet("""
             QPushButton {
                 background-color: #3c3c3c;
-                color: #cccccc;
                 border: none;
                 border-radius: 4px;
-                font-size: 16px;
+                padding: 2px;
             }
             QPushButton:hover {
                 background-color: #505050;
             }
             QPushButton:disabled {
-                color: #666666;
+                opacity: 0.5;
             }
         """)
         self.btn_zoom_in.clicked.connect(self._on_zoom_in)
         
-        self.btn_zoom_out.setEnabled(self.zoom_level > 0.5)
+        zoom_buttons_layout = QHBoxLayout()
+        zoom_buttons_layout.setSpacing(4)
+        zoom_buttons_layout.addWidget(self.btn_zoom_out)
+        zoom_buttons_layout.addWidget(self.btn_zoom_in)
         
-        zoom_layout.addStretch()
-        zoom_layout.addWidget(self.btn_zoom_out)
-        zoom_layout.addWidget(self.zoom_label)
-        zoom_layout.addWidget(self.btn_zoom_in)
-        zoom_layout.addStretch()
+        workspace_header_layout.addLayout(zoom_buttons_layout)
         
-        content_layout.addWidget(self.zoom_controls)
+        self.workspace_container = QFrame()
+        self.workspace_container.setVisible(False)
+        self.workspace_container.setStyleSheet("""
+            QFrame {
+                background-color: #1e1e1e;
+                border: 1px solid #3c3c3c;
+                border-radius: 6px;
+            }
+        """)
+        workspace_container_layout = QVBoxLayout(self.workspace_container)
+        workspace_container_layout.setContentsMargins(0, 0, 0, 0)
+        workspace_container_layout.setSpacing(0)
+        
+        workspace_container_layout.addWidget(self.workspace_header)
         
         self.thumbnail_scroll = QScrollArea()
         self.thumbnail_scroll.setVisible(False)
@@ -658,7 +686,6 @@ class MainWindow(QWidget):
             QScrollArea {
                 border: none;
                 background-color: #1e1e1e;
-                border-radius: 8px;
                 padding: 10px;
             }
             QScrollBar:horizontal {
@@ -691,7 +718,9 @@ class MainWindow(QWidget):
         self.thumbnail_scroll.setWidget(self.thumbnail_widget)
         self.thumbnail_scroll.viewport().installEventFilter(self)
         
-        content_layout.addWidget(self.thumbnail_scroll)
+        workspace_container_layout.addWidget(self.thumbnail_scroll)
+        
+        content_layout.addWidget(self.workspace_container)
         
         options_layout = QHBoxLayout()
         
@@ -801,13 +830,12 @@ class MainWindow(QWidget):
             self._update_zoom()
             
     def _on_zoom_out(self):
-        if self.zoom_level > 0.5:
+        if self.zoom_level > 0.95:
             self.zoom_level = max(0.5, self.zoom_level - 0.25)
             self._update_zoom()
             
     def _update_zoom(self):
-        self.zoom_label.setText(f"{int(self.zoom_level * 100)}%")
-        self.btn_zoom_out.setEnabled(self.zoom_level > 0.5)
+        self.btn_zoom_out.setEnabled(self.zoom_level > 0.95)
         self.btn_zoom_in.setEnabled(self.zoom_level < 2.0)
         self._relayout_thumbnails()
         
@@ -824,7 +852,8 @@ class MainWindow(QWidget):
         
     def _load_thumbnails(self):
         self.thumbnail_scroll.setVisible(True)
-        self.zoom_controls.setVisible(True)
+        self.workspace_container.setVisible(True)
+        self.workspace_header.setVisible(True)
         
         from PIL import Image
         import pypdfium2 as pdfium
@@ -867,28 +896,40 @@ class MainWindow(QWidget):
                         pil_img = bitmap.to_pil()
                         pil_img = pil_img.convert('RGB')
                         
-                        pil_img.thumbnail((thumb_width, thumb_height), Image.Resampling.LANCZOS)
+                        img_width, img_height = pil_img.size
+                        target_width = thumb_width - 20
+                        target_height = thumb_height - 20
+                        
+                        ratio = min(target_width / img_width, target_height / img_height)
+                        new_width = int(img_width * ratio)
+                        new_height = int(img_height * ratio)
+                        pil_img = pil_img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                        
+                        canvas = Image.new('RGB', (thumb_width, thumb_height), '#2d2d2d')
+                        paste_x = (thumb_width - new_width) // 2
+                        paste_y = (thumb_height - new_height) // 2
+                        canvas.paste(pil_img, (paste_x, paste_y))
                         
                         temp_fd, temp_path = tempfile.mkstemp(suffix='.jpg')
                         os.close(temp_fd)
-                        pil_img.save(temp_path, "JPEG", quality=90)
+                        canvas.save(temp_path, "JPEG", quality=90)
                         
                         thumb_label = QLabel()
                         pixmap = QPixmap(temp_path)
-                        thumb_label.setPixmap(pixmap.scaled(thumb_width, thumb_height, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-                        thumb_label.setScaledContents(False)
+                        thumb_label.setPixmap(pixmap)
                         thumb_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                         
                         page_label = QLabel(f"Pág {self.page_counter}")
                         self.page_counter += 1
                         page_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                         page_label.setStyleSheet("""
-                            color: #cccccc;
-                            font-size: 10px;
+                            color: #ffffff;
+                            font-size: 11px;
                             font-weight: bold;
-                            background-color: #2d2d2d;
-                            border-radius: 4px;
-                            padding: 2px 8px;
+                            background-color: #0e639c;
+                            border-radius: 10px;
+                            padding: 4px 10px;
+                            min-width: 45px;
                         """)
                         
                         container = QFrame()
