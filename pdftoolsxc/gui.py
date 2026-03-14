@@ -12,10 +12,84 @@ from PyQt6.QtWidgets import (
     QApplication, QWidget, QHBoxLayout, QVBoxLayout,
     QLabel, QPushButton,
     QFrame, QScrollArea, QSlider, QCheckBox, QGroupBox,
-    QFileDialog, QMessageBox, QProgressBar, QGridLayout, QSizePolicy
+    QFileDialog, QMessageBox, QProgressBar, QGridLayout, QSizePolicy, QLayout
 )
-from PyQt6.QtCore import Qt, QMimeData, pyqtSignal, QSize
-from PyQt6.QtGui import QIcon, QFont, QFontDatabase, QColor, QPalette, QDragEnterEvent, QDropEvent, QPixmap
+from PyQt6.QtCore import Qt, QMimeData, pyqtSignal, QSize, QPoint, QRect, QEvent
+from PyQt6.QtGui import QIcon, QFont, QFontDatabase, QColor, QPalette, QDragEnterEvent, QDropEvent, QPixmap, QResizeEvent
+
+
+class FlowLayout(QLayout):
+    def __init__(self, parent=None, margin=0, spacing=-1):
+        super().__init__(parent)
+        self.setContentsMargins(margin, margin, margin, margin)
+        self._spacing = spacing
+        self._item_list = []
+
+    def addItem(self, item):
+        self._item_list.append(item)
+
+    def takeAt(self, index):
+        if 0 <= index < len(self._item_list):
+            return self._item_list.pop(index)
+        return None
+
+    def itemAt(self, index):
+        if 0 <= index < len(self._item_list):
+            return self._item_list[index]
+        return None
+
+    def count(self):
+        return len(self._item_list)
+
+    def sizeHint(self):
+        return QSize(200, 200)
+
+    def setSpacing(self, spacing):
+        self._spacing = spacing
+
+    def spacing(self):
+        return self._spacing
+
+    def hasHeightForWidth(self):
+        return True
+
+    def heightForWidth(self, width):
+        return self._do_layout(QRect(0, 0, width, 0), True)
+
+    def _do_layout(self, rect, test_only=False):
+        m = self.contentsMargins()
+        available_width = rect.width() - m.left() - m.right()
+        x = rect.x() + m.left()
+        y = rect.y() + m.top()
+        line_height = 0
+        spacing = self._spacing
+
+        for item in self._item_list:
+            widget = item.widget()
+            if widget:
+                size_hint = item.sizeHint()
+                width = size_hint.width()
+                height = size_hint.height()
+
+                if x + width > rect.right() - m.right():
+                    x = rect.x() + m.left()
+                    y += line_height + spacing
+                    line_height = 0
+
+                if not test_only:
+                    item.setGeometry(QRect(QPoint(x, y), size_hint))
+
+                line_height = max(line_height, height)
+                x += width + spacing
+
+        total_height = y + line_height - rect.top() - m.top()
+        return total_height
+
+    def update(self):
+        if self.parentWidget():
+            self.parentWidget().update()
+            self.parentWidget().updateGeometry()
+            self.invalidate()
 
 
 def get_font_path() -> str:
@@ -403,7 +477,36 @@ class MainWindow(QWidget):
         self.files: List[str] = []
         self.loaded_files: List[str] = []
         self.page_counter = 1
+        self.zoom_level = 0.95
         self._setup_ui()
+        
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.Resize and obj == self.thumbnail_scroll.viewport():
+            self._relayout_thumbnails()
+        return super().eventFilter(obj, event)
+    
+    def _relayout_thumbnails(self):
+        base_width = 150
+        base_height = 200
+        thumb_width = int(base_width * self.zoom_level)
+        
+        viewport_width = self.thumbnail_scroll.viewport().width()
+        if viewport_width > 0:
+            spacing = 15
+            cols = max(1, (viewport_width - 20) // (thumb_width + spacing))
+        else:
+            cols = 4
+        
+        current_files = self.files.copy()
+        
+        while self.thumbnail_layout.count():
+            item = self.thumbnail_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        self.loaded_files = []
+        self.files = current_files
+        self._load_thumbnails()
         
     def _setup_ui(self):
         self.setWindowTitle("PdfToolsXc - Herramientas PDF")
@@ -484,6 +587,69 @@ class MainWindow(QWidget):
         self.drop_zone.files_dropped.connect(self._on_files_dropped)
         content_layout.addWidget(self.drop_zone)
         
+        self.zoom_controls = QFrame()
+        self.zoom_controls.setVisible(False)
+        zoom_layout = QHBoxLayout(self.zoom_controls)
+        zoom_layout.setContentsMargins(0, 0, 0, 10)
+        
+        self.btn_zoom_out = QPushButton("\uf104")
+        self.btn_zoom_out.setFixedSize(36, 36)
+        self.btn_zoom_out.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_zoom_out.setStyleSheet("""
+            QPushButton {
+                background-color: #3c3c3c;
+                color: #cccccc;
+                border: none;
+                border-radius: 4px;
+                font-size: 16px;
+            }
+            QPushButton:hover {
+                background-color: #505050;
+            }
+            QPushButton:disabled {
+                color: #666666;
+            }
+        """)
+        self.btn_zoom_out.clicked.connect(self._on_zoom_out)
+        
+        self.zoom_label = QLabel("95%")
+        self.zoom_label.setStyleSheet("""
+            color: #cccccc;
+            font-size: 13px;
+            min-width: 50px;
+            text-align: center;
+        """)
+        
+        self.btn_zoom_in = QPushButton("\uf105")
+        self.btn_zoom_in.setFixedSize(36, 36)
+        self.btn_zoom_in.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.btn_zoom_in.setStyleSheet("""
+            QPushButton {
+                background-color: #3c3c3c;
+                color: #cccccc;
+                border: none;
+                border-radius: 4px;
+                font-size: 16px;
+            }
+            QPushButton:hover {
+                background-color: #505050;
+            }
+            QPushButton:disabled {
+                color: #666666;
+            }
+        """)
+        self.btn_zoom_in.clicked.connect(self._on_zoom_in)
+        
+        self.btn_zoom_out.setEnabled(self.zoom_level > 0.5)
+        
+        zoom_layout.addStretch()
+        zoom_layout.addWidget(self.btn_zoom_out)
+        zoom_layout.addWidget(self.zoom_label)
+        zoom_layout.addWidget(self.btn_zoom_in)
+        zoom_layout.addStretch()
+        
+        content_layout.addWidget(self.zoom_controls)
+        
         self.thumbnail_scroll = QScrollArea()
         self.thumbnail_scroll.setVisible(False)
         self.thumbnail_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -493,20 +659,21 @@ class MainWindow(QWidget):
                 border: none;
                 background-color: #1e1e1e;
                 border-radius: 8px;
+                padding: 10px;
             }
             QScrollBar:horizontal {
-                background-color: transparent;
-                height: 12px;
+                background-color: #2d2d2d;
+                height: 10px;
                 border: none;
-                margin: 4px;
+                border-radius: 5px;
             }
             QScrollBar::handle:horizontal {
-                background-color: #424242;
-                border-radius: 6px;
-                min-width: 40px;
+                background-color: #0e639c;
+                border-radius: 5px;
+                min-width: 30px;
             }
             QScrollBar::handle:horizontal:hover {
-                background-color: #4f4f4f;
+                background-color: #1177bb;
             }
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
                 width: 0px;
@@ -520,9 +687,9 @@ class MainWindow(QWidget):
         self.thumbnail_widget = QWidget()
         self.thumbnail_layout = QGridLayout(self.thumbnail_widget)
         self.thumbnail_layout.setSpacing(10)
-        self.thumbnail_layout.setRowStretch(100, 1)
-        self.thumbnail_layout.setColumnStretch(100, 1)
+        self.thumbnail_layout.setContentsMargins(10, 10, 10, 10)
         self.thumbnail_scroll.setWidget(self.thumbnail_widget)
+        self.thumbnail_scroll.viewport().installEventFilter(self)
         
         content_layout.addWidget(self.thumbnail_scroll)
         
@@ -612,16 +779,37 @@ class MainWindow(QWidget):
         self.options_panel.layout().insertWidget(0, new_options)
         self.options_panel = new_options
         
+    def _clear_thumbnails(self):
+        while self.thumbnail_layout.count():
+            item = self.thumbnail_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        self.loaded_files = []
+        self.page_counter = 1
+        
     def _on_files_dropped(self, files: List[str]):
         for f in files:
             if f not in self.files:
                 self.files.append(f)
-                
-        if not self.loaded_files:
-            self.page_counter = 1
-            
+        
         self.drop_zone.setVisible(False)
         self._load_thumbnails()
+        
+    def _on_zoom_in(self):
+        if self.zoom_level < 2.0:
+            self.zoom_level = min(2.0, self.zoom_level + 0.25)
+            self._update_zoom()
+            
+    def _on_zoom_out(self):
+        if self.zoom_level > 0.5:
+            self.zoom_level = max(0.5, self.zoom_level - 0.25)
+            self._update_zoom()
+            
+    def _update_zoom(self):
+        self.zoom_label.setText(f"{int(self.zoom_level * 100)}%")
+        self.btn_zoom_out.setEnabled(self.zoom_level > 0.5)
+        self.btn_zoom_in.setEnabled(self.zoom_level < 2.0)
+        self._relayout_thumbnails()
         
     def _on_add_more_clicked(self):
         from PyQt6.QtWidgets import QFileDialog
@@ -636,29 +824,27 @@ class MainWindow(QWidget):
         
     def _load_thumbnails(self):
         self.thumbnail_scroll.setVisible(True)
+        self.zoom_controls.setVisible(True)
         
         from PIL import Image
         import pypdfium2 as pdfium
         import tempfile
         import os
         
-        thumb_width = 140
-        thumb_height = 180
-        spacing = 15
+        base_width = 150
+        base_height = 200
+        thumb_width = int(base_width * self.zoom_level)
+        thumb_height = int(base_height * self.zoom_level)
         
-        container_width = self.thumbnail_scroll.viewport().width()
-        if container_width > 0:
-            max_cols = max(1, (container_width - spacing) // (thumb_width + spacing))
+        viewport_width = self.thumbnail_scroll.viewport().width()
+        if viewport_width > 0:
+            spacing = 15
+            cols = max(1, (viewport_width - 20) // (thumb_width + spacing))
         else:
-            max_cols = 6
+            cols = 4
         
-        current_row = 0
-        current_col = 0
-        
-        total_items = self.thumbnail_layout.count()
-        if total_items > 0:
-            current_row = total_items // max_cols
-            current_col = total_items % max_cols
+        row = self.thumbnail_layout.count() // cols
+        col = self.thumbnail_layout.count() % cols
         
         for file_path in self.files:
             if file_path in self.loaded_files:
@@ -676,14 +862,16 @@ class MainWindow(QWidget):
                     
                     for page_num in range(total_pages):
                         page = pdf[page_num]
-                        bitmap = page.render(scale=0.25)
+                        scale = 0.5 * self.zoom_level
+                        bitmap = page.render(scale=scale)
                         pil_img = bitmap.to_pil()
                         pil_img = pil_img.convert('RGB')
-                        pil_img.thumbnail((thumb_width, thumb_height))
+                        
+                        pil_img.thumbnail((thumb_width, thumb_height), Image.Resampling.LANCZOS)
                         
                         temp_fd, temp_path = tempfile.mkstemp(suffix='.jpg')
                         os.close(temp_fd)
-                        pil_img.save(temp_path, "JPEG", quality=60)
+                        pil_img.save(temp_path, "JPEG", quality=90)
                         
                         thumb_label = QLabel()
                         pixmap = QPixmap(temp_path)
@@ -704,40 +892,41 @@ class MainWindow(QWidget):
                         """)
                         
                         container = QFrame()
+                        container.setFixedSize(thumb_width, thumb_height + 30)
                         container.setStyleSheet("""
                             QFrame {
-                                background-color: #252526;
+                                background-color: #2d2d2d;
                                 border: 1px solid #3c3c3c;
-                                border-radius: 4px;
+                                border-radius: 8px;
                                 padding: 6px;
                             }
                             QFrame:hover {
                                 border-color: #0e639c;
-                                background-color: #2a2d2e;
+                                background-color: #37373d;
                             }
                         """)
                         
                         v_layout = QVBoxLayout(container)
                         v_layout.setContentsMargins(4, 4, 4, 4)
-                        v_layout.setSpacing(4)
+                        v_layout.setSpacing(2)
                         v_layout.addWidget(thumb_label, 0, Qt.AlignmentFlag.AlignCenter)
                         v_layout.addWidget(page_label, 0, Qt.AlignmentFlag.AlignCenter)
                         
-                        self.thumbnail_layout.addWidget(container, current_row, current_col)
+                        self.thumbnail_layout.addWidget(container, row, col)
                         
-                        current_col += 1
-                        if current_col >= max_cols:
-                            current_col = 0
-                            current_row += 1
+                        col += 1
+                        if col >= cols:
+                            col = 0
+                            row += 1
                             
                 else:
                     pil_img = Image.open(str(path))
                     pil_img = pil_img.convert('RGB')
-                    pil_img.thumbnail((thumb_width, thumb_height))
+                    pil_img.thumbnail((thumb_width, thumb_height), Image.Resampling.LANCZOS)
                     
                     temp_fd, temp_path = tempfile.mkstemp(suffix='.jpg')
                     os.close(temp_fd)
-                    pil_img.save(temp_path, "JPEG", quality=60)
+                    pil_img.save(temp_path, "JPEG", quality=90)
                     
                     thumb_label = QLabel()
                     pixmap = QPixmap(temp_path)
@@ -754,16 +943,17 @@ class MainWindow(QWidget):
                     """)
                     
                     container = QFrame()
+                    container.setFixedWidth(thumb_width)
                     container.setStyleSheet("""
                         QFrame {
-                            background-color: #252526;
+                            background-color: #2d2d2d;
                             border: 1px solid #3c3c3c;
-                            border-radius: 4px;
-                            padding: 6px;
+                            border-radius: 8px;
+                            padding: 8px;
                         }
                         QFrame:hover {
                             border-color: #0e639c;
-                            background-color: #2a2d2e;
+                            background-color: #37373d;
                         }
                     """)
                     
@@ -773,20 +963,21 @@ class MainWindow(QWidget):
                     v_layout.addWidget(thumb_label, 0, Qt.AlignmentFlag.AlignCenter)
                     v_layout.addWidget(name_label, 0, Qt.AlignmentFlag.AlignCenter)
                     
-                    self.thumbnail_layout.addWidget(container, current_row, current_col)
+                    container.setFixedSize(thumb_width, thumb_height + 30)
+                    self.thumbnail_layout.addWidget(container, row, col)
                     
-                    current_col += 1
-                    if current_col >= max_cols:
-                        current_col = 0
-                        current_row += 1
-                        
+                    col += 1
+                    if col >= cols:
+                        col = 0
+                        row += 1
+                    
             except Exception as e:
                 print(f"Error loading thumbnail: {e}")
                 import traceback
                 traceback.print_exc()
         
         self.thumbnail_layout.setSpacing(10)
-        self.thumbnail_scroll.setMinimumHeight(min(400, (current_row + 1) * 220))
+        self.thumbnail_layout.update()
         
     def _on_process_clicked(self):
         if not self.files:
