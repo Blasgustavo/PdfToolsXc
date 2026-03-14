@@ -45,49 +45,54 @@ class ToolButton(QPushButton):
         self.desc = desc
         self.selected = False
         
-        self.setFixedHeight(90)
+        icons = {
+            "nf-md-file_document": "\uf1c4",
+            "nf-md-file_document_multiple": "\uf1c5",
+            "nf-md-file_document_outline": "\uf1c6",
+            "nf-md-image": "\uf2d6",
+            "nf-md-text_recognition": "\uf2d7",
+            "nf-md-swap_horizontal": "\uf1c2",
+        }
+        self.icon_display = icons.get(icon_code, "\uf15b")
+        
+        self.setFixedHeight(50)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         self._update_style()
         
     def _update_style(self):
         if self.selected:
-            bg_color = "#1e3a5f"
-            border_color = "#3b82f6"
+            bg_color = "#37373d"
             text_color = "#ffffff"
+            border_color = "#4fc1ff"
         else:
-            bg_color = "#2d3748"
-            border_color = "#4a5568"
-            text_color = "#e2e8f0"
-            
-        icon_display = self._get_nerdfont_icon()
-        
-        font_path = get_font_path()
-        font_family = "monospace"
-        if font_path:
-            font_id = QFontDatabase.addApplicationFont(font_path)
-            if font_id != -1:
-                font_families = QFontDatabase.applicationFontFamilies(font_id)
-                if font_families:
-                    font_family = f"'{font_families[0]}', monospace"
+            bg_color = "transparent"
+            text_color = "#cccccc"
+            border_color = "transparent"
         
         self.setStyleSheet(f"""
             QPushButton {{
                 background-color: {bg_color};
-                border: 2px solid {border_color};
-                border-radius: 12px;
-                padding: 12px;
+                border: none;
+                border-left: 3px solid {border_color};
+                border-radius: 0px;
+                padding: 8px 12px;
                 text-align: left;
-                font-family: {font_family};
-                font-size: 16px;
+                font-size: 13px;
                 color: {text_color};
+                margin: 1px 4px;
             }}
             QPushButton:hover {{
-                background-color: #1e3a5f;
-                border-color: #3b82f6;
+                background-color: #2a2d2e;
+            }}
+            QPushButton:pressed {{
+                background-color: #37373d;
             }}
         """)
         
-        self.setText(f"{icon_display}  {self.name}")
+        self.setText(f"{self.icon_display} {self.name}")
+        self.setIcon(QIcon())
+        self.setIconSize(QSize(16, 16))
         
     def _get_nerdfont_icon(self) -> str:
         icons = {
@@ -147,7 +152,7 @@ class DropZone(QFrame):
                         QLabel {{
                             font-family: '{font_families[0]}', monospace;
                             font-size: 64px;
-                            color: #4a5568;
+                            color: #6b7280;
                         }}
                     """)
         
@@ -157,7 +162,7 @@ class DropZone(QFrame):
             QLabel {
                 font-size: 18px;
                 font-weight: bold;
-                color: #2d3748;
+                color: #cccccc;
             }
         """)
         
@@ -166,7 +171,7 @@ class DropZone(QFrame):
         subtitle.setStyleSheet("""
             QLabel {
                 font-size: 14px;
-                color: #718096;
+                color: #808080;
             }
         """)
         
@@ -176,7 +181,7 @@ class DropZone(QFrame):
             QLabel {
                 font-size: 14px;
                 font-weight: bold;
-                color: #3b82f6;
+                color: #0e639c;
                 margin-top: 10px;
             }
         """)
@@ -190,13 +195,13 @@ class DropZone(QFrame):
         
         self.setStyleSheet("""
             QFrame {
-                background-color: #f7fafc;
-                border: 3px dashed #cbd5e0;
-                border-radius: 16px;
+                background-color: #252526;
+                border: 2px dashed #555555;
+                border-radius: 8px;
             }
             QFrame:hover {
-                border-color: #3b82f6;
-                background-color: #ebf8ff;
+                border-color: #0e639c;
+                background-color: #2a2d2e;
             }
         """)
         
@@ -223,18 +228,18 @@ class DropZone(QFrame):
             event.acceptProposedAction()
             self.setStyleSheet("""
                 QFrame {
-                    background-color: #ebf8ff;
-                    border: 3px dashed #3b82f6;
-                    border-radius: 16px;
+                    background-color: #2a2d2e;
+                    border: 2px dashed #0e639c;
+                    border-radius: 8px;
                 }
             """)
             
     def dragLeaveEvent(self, event):
         self.setStyleSheet("""
             QFrame {
-                background-color: #f7fafc;
-                border: 3px dashed #cbd5e0;
-                border-radius: 16px;
+                background-color: #252526;
+                border: 2px dashed #555555;
+                border-radius: 8px;
             }
         """)
         
@@ -253,9 +258,9 @@ class DropZone(QFrame):
             
         self.setStyleSheet("""
             QFrame {
-                background-color: #f7fafc;
-                border: 3px dashed #cbd5e0;
-                border-radius: 16px;
+                background-color: #252526;
+                border: 2px dashed #555555;
+                border-radius: 8px;
             }
         """)
 
@@ -270,16 +275,18 @@ class Sidebar(QFrame):
         
     def _setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(15, 30, 15, 30)
-        layout.setSpacing(12)
+        layout.setContentsMargins(5, 15, 5, 15)
+        layout.setSpacing(4)
         
         title = QLabel("PdfToolsXc")
         title.setStyleSheet("""
             QLabel {
-                font-size: 24px;
+                font-size: 11px;
                 font-weight: bold;
-                color: #f7fafc;
-                padding: 15px;
+                color: #858585;
+                padding: 8px 12px 12px 12px;
+                text-transform: uppercase;
+                letter-spacing: 1px;
             }
         """)
         layout.addWidget(title)
@@ -294,10 +301,10 @@ class Sidebar(QFrame):
         
         self.buttons[0].set_selected(True)
         
-        self.setFixedWidth(220)
+        self.setFixedWidth(180)
         self.setStyleSheet("""
             QFrame {
-                background-color: #0f172a;
+                background-color: #252526;
             }
         """)
         
@@ -320,7 +327,7 @@ class OptionsPanel(QFrame):
             self._setup_formatter_options(layout)
         else:
             placeholder = QLabel("Opciones de herramienta")
-            placeholder.setStyleSheet("color: #718096; font-size: 14px;")
+            placeholder.setStyleSheet("color: #808080; font-size: 14px;")
             layout.addWidget(placeholder)
             
         layout.addStretch()
@@ -331,10 +338,10 @@ class OptionsPanel(QFrame):
         
         self.chk_a4 = QCheckBox("Escalar a A4 (2480×3508)")
         self.chk_a4.setChecked(True)
-        self.chk_a4.setStyleSheet("color: #2d3748;")
+        self.chk_a4.setStyleSheet("color: #cccccc;")
         
         self.chk_fit = QCheckBox("Ajustar a página")
-        self.chk_fit.setStyleSheet("color: #2d3748;")
+        self.chk_fit.setStyleSheet("color: #cccccc;")
         
         scale_layout.addWidget(self.chk_a4)
         scale_layout.addWidget(self.chk_fit)
@@ -365,7 +372,7 @@ class OptionsPanel(QFrame):
         
         self.chk_compress = QCheckBox("Comprimir imágenes")
         self.chk_compress.setChecked(True)
-        self.chk_compress.setStyleSheet("color: #2d3748;")
+        self.chk_compress.setStyleSheet("color: #cccccc;")
         
         compress_layout.addWidget(self.chk_compress)
         compress_group.setLayout(compress_layout)
@@ -375,9 +382,9 @@ class OptionsPanel(QFrame):
             group.setStyleSheet("""
                 QGroupBox {
                     font-weight: bold;
-                    color: #2d3748;
-                    border: 1px solid #e2e8f0;
-                    border-radius: 8px;
+                    color: #cccccc;
+                    border: 1px solid #3c3c3c;
+                    border-radius: 4px;
                     margin-top: 10px;
                     padding-top: 10px;
                 }
@@ -404,54 +411,55 @@ class MainWindow(QWidget):
         self.setGeometry(100, 100, 1100, 750)
         self.setStyleSheet("""
             QWidget {
-                background-color: #f1f5f9;
+                background-color: #1e1e1e;
+                color: #cccccc;
             }
             QMessageBox {
-                background-color: #ffffff;
+                background-color: #252526;
             }
             QMessageBox QLabel {
                 font-size: 14px;
-                color: #1e293b;
+                color: #cccccc;
             }
             QMessageBox QPushButton {
-                background-color: #3b82f6;
+                background-color: #0e639c;
                 color: white;
                 border: none;
-                border-radius: 6px;
+                border-radius: 4px;
                 padding: 8px 20px;
                 font-size: 14px;
             }
             QMessageBox QPushButton:hover {
-                background-color: #2563eb;
+                background-color: #1177bb;
             }
             QScrollBar:vertical {
                 background-color: transparent;
-                width: 12px;
+                width: 14px;
                 border: none;
             }
             QScrollBar::handle:vertical {
-                background-color: #94a3b8;
-                border-radius: 6px;
+                background-color: #424242;
+                border-radius: 7px;
                 min-height: 40px;
             }
             QScrollBar::handle:vertical:hover {
-                background-color: #64748b;
+                background-color: #4f4f4f;
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
             }
             QScrollBar:horizontal {
                 background-color: transparent;
-                height: 12px;
+                height: 14px;
                 border: none;
             }
             QScrollBar::handle:horizontal {
-                background-color: #94a3b8;
-                border-radius: 6px;
+                background-color: #424242;
+                border-radius: 7px;
                 min-width: 40px;
             }
             QScrollBar::handle:horizontal:hover {
-                background-color: #64748b;
+                background-color: #4f4f4f;
             }
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
                 width: 0px;
@@ -467,14 +475,13 @@ class MainWindow(QWidget):
         main_layout.addWidget(self.sidebar)
         
         content = QFrame()
-        content.setStyleSheet("background-color: #ffffff;")
+        content.setStyleSheet("background-color: #1e1e1e;")
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(20, 20, 20, 20)
         content_layout.setSpacing(20)
         
         self.drop_zone = DropZone()
         self.drop_zone.files_dropped.connect(self._on_files_dropped)
-        self.drop_zone.mousePressEvent = lambda event: self._on_add_more_clicked()
         content_layout.addWidget(self.drop_zone)
         
         self.thumbnail_scroll = QScrollArea()
@@ -484,8 +491,8 @@ class MainWindow(QWidget):
         self.thumbnail_scroll.setStyleSheet("""
             QScrollArea {
                 border: none;
-                background-color: #f8fafc;
-                border-radius: 12px;
+                background-color: #1e1e1e;
+                border-radius: 8px;
             }
             QScrollBar:horizontal {
                 background-color: transparent;
@@ -494,12 +501,12 @@ class MainWindow(QWidget):
                 margin: 4px;
             }
             QScrollBar::handle:horizontal {
-                background-color: #94a3b8;
+                background-color: #424242;
                 border-radius: 6px;
                 min-width: 40px;
             }
             QScrollBar::handle:horizontal:hover {
-                background-color: #64748b;
+                background-color: #4f4f4f;
             }
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
                 width: 0px;
@@ -531,15 +538,15 @@ class MainWindow(QWidget):
         self.btn_add_more.setStyleSheet("""
             QPushButton {
                 background-color: transparent;
-                color: #3b82f6;
-                border: 2px dashed #3b82f6;
-                border-radius: 8px;
+                color: #0e639c;
+                border: 2px dashed #0e639c;
+                border-radius: 4px;
                 padding: 10px 20px;
                 font-size: 14px;
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #eff6ff;
+                background-color: #2a2d2e;
                 border-style: solid;
             }
         """)
@@ -547,22 +554,23 @@ class MainWindow(QWidget):
         action_layout.addWidget(self.btn_add_more)
         
         self.btn_process = QPushButton("\uf144  PROCESAR")
-        self.btn_process.setFixedHeight(55)
+        self.btn_process.setFixedHeight(50)
         self.btn_process.setCursor(Qt.CursorShape.PointingHandCursor)
         self.btn_process.setStyleSheet("""
             QPushButton {
-                background-color: #10b981;
+                background-color: #0e639c;
                 color: white;
                 border: none;
-                border-radius: 10px;
-                font-size: 16px;
+                border-radius: 4px;
+                font-size: 14px;
                 font-weight: bold;
             }
             QPushButton:hover {
-                background-color: #059669;
+                background-color: #1177bb;
             }
             QPushButton:disabled {
-                background-color: #94a3b8;
+                background-color: #3c3c3c;
+                color: #808080;
             }
         """)
         
@@ -572,11 +580,12 @@ class MainWindow(QWidget):
             QProgressBar {
                 border: none;
                 border-radius: 4px;
-                background-color: #e2e8f0;
+                background-color: #3c3c3c;
                 text-align: center;
+                color: #cccccc;
             }
             QProgressBar::chunk {
-                background-color: #3b82f6;
+                background-color: #0e639c;
                 border-radius: 4px;
             }
         """)
@@ -686,10 +695,10 @@ class MainWindow(QWidget):
                         self.page_counter += 1
                         page_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                         page_label.setStyleSheet("""
-                            color: #64748b;
+                            color: #cccccc;
                             font-size: 10px;
                             font-weight: bold;
-                            background-color: #f1f5f9;
+                            background-color: #2d2d2d;
                             border-radius: 4px;
                             padding: 2px 8px;
                         """)
@@ -697,14 +706,14 @@ class MainWindow(QWidget):
                         container = QFrame()
                         container.setStyleSheet("""
                             QFrame {
-                                background-color: #ffffff;
-                                border: 1px solid #e2e8f0;
-                                border-radius: 8px;
+                                background-color: #252526;
+                                border: 1px solid #3c3c3c;
+                                border-radius: 4px;
                                 padding: 6px;
                             }
                             QFrame:hover {
-                                border-color: #3b82f6;
-                                background-color: #f8fafc;
+                                border-color: #0e639c;
+                                background-color: #2a2d2e;
                             }
                         """)
                         
@@ -739,7 +748,7 @@ class MainWindow(QWidget):
                     name_label = QLabel(path.name[:15] + "..." if len(path.name) > 15 else path.name)
                     name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
                     name_label.setStyleSheet("""
-                        color: #64748b;
+                        color: #cccccc;
                         font-size: 10px;
                         font-weight: bold;
                     """)
@@ -747,14 +756,14 @@ class MainWindow(QWidget):
                     container = QFrame()
                     container.setStyleSheet("""
                         QFrame {
-                            background-color: #ffffff;
-                            border: 1px solid #e2e8f0;
-                            border-radius: 8px;
+                            background-color: #252526;
+                            border: 1px solid #3c3c3c;
+                            border-radius: 4px;
                             padding: 6px;
                         }
                         QFrame:hover {
-                            border-color: #3b82f6;
-                            background-color: #f8fafc;
+                            border-color: #0e639c;
+                            background-color: #2a2d2e;
                         }
                     """)
                     
